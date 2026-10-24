@@ -1,53 +1,35 @@
 ﻿from ultralytics import YOLO
-import cv2
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-IMAGE_PATH = BASE_DIR / "sample_videos" / "bus.jpg"
-OUTPUT_PATH = BASE_DIR / "sample_videos" / "detected_output.jpg"
 
 VEHICLE_CLASSES = [2, 3, 5, 7]
 
 
-def main():
-    if not IMAGE_PATH.exists():
-        print(f"Image not found: {IMAGE_PATH}")
-        return
+class VehicleDetector:
+    def __init__(self, model_path="yolo11n.pt", confidence=0.35):
+        self.model = YOLO(model_path)
+        self.confidence = confidence
 
-    image = cv2.imread(str(IMAGE_PATH))
+    def detect(self, frame):
+        results = self.model.predict(
+            source=frame,
+            classes=VEHICLE_CLASSES,
+            conf=self.confidence,
+            verbose=False
+        )
 
-    if image is None:
-        print("Could not read the image.")
-        return
+        detections = []
 
-    print("Loading YOLO model...")
-    model = YOLO("yolo11n.pt")
+        if not results or results[0].boxes is None:
+            return detections
 
-    print("Detecting vehicles...")
-    results = model.predict(
-        source=image,
-        classes=VEHICLE_CLASSES,
-        conf=0.35,
-        verbose=False
-    )
+        for box in results[0].boxes:
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            class_id = int(box.cls[0])
+            confidence = float(box.conf[0])
 
-    annotated_image = results[0].plot()
-    cv2.imwrite(str(OUTPUT_PATH), annotated_image)
+            detections.append({
+                "bbox": (int(x1), int(y1), int(x2), int(y2)),
+                "class_name": self.model.names[class_id],
+                "confidence": confidence
+            })
 
-    print("\nDetection Results:")
-
-    for box in results[0].boxes:
-        class_id = int(box.cls[0])
-        label = model.names[class_id]
-        confidence = float(box.conf[0])
-        print(f"{label}: {confidence:.2f}")
-
-    print(f"\nOutput saved to: {OUTPUT_PATH}")
-
-    cv2.imshow("Vehicle Detection", annotated_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-
-if __name__ == "__main__":
-    main()
+        return detections
