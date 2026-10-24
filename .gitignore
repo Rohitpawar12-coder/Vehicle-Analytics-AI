@@ -27,3 +27,6 @@ outputs/*
 !outputs/.gitkeep
 database/*.db
 *.pt
+_backup_database_*/
+backend/main_backup_before_db.py
+vision/video_detector_backup.py
