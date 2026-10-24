@@ -1,7 +1,7 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
-const API = "http://127.0.0.1:8000";
+const API = "http://127.0.0.1:8080";
 
 function App() {
   const [stats, setStats] = useState({
@@ -113,12 +113,12 @@ function App() {
   }
 
   const cards = [
-    { label: "Total Vehicles", value: stats.total_detections ?? 0, icon: "◈" },
-    { label: "Cars", value: stats.cars ?? 0, icon: "🚘" },
-    { label: "Trucks", value: stats.trucks ?? 0, icon: "🚚" },
-    { label: "Buses", value: stats.buses ?? 0, icon: "🚌" },
-    { label: "Motorcycles", value: stats.motorcycles ?? 0, icon: "🏍️" },
-    { label: "Line Crossings", value: stats.line_crossings ?? 0, icon: "↕" },
+    { label: "Total Vehicles", value: stats.total_detections ?? 0, icon: "?" },
+    { label: "Cars", value: stats.cars ?? 0, icon: "??" },
+    { label: "Trucks", value: stats.trucks ?? 0, icon: "??" },
+    { label: "Buses", value: stats.buses ?? 0, icon: "??" },
+    { label: "Motorcycles", value: stats.motorcycles ?? 0, icon: "???" },
+    { label: "Line Crossings", value: stats.line_crossings ?? 0, icon: "?" },
   ];
 
   return (
@@ -133,16 +133,16 @@ function App() {
         </div>
 
         <div className="nav-label">WORKSPACE</div>
-        <a className="nav-item active" href="#dashboard"><span>▦</span> Dashboard</a>
-        <a className="nav-item" href="#upload"><span>⇧</span> Video Processing</a>
-        <a className="nav-item" href="#detections"><span>◎</span> Vehicle Detections</a>
+        <a className="nav-item active" href="#dashboard"><span>?</span> Dashboard</a>
+        <a className="nav-item" href="#upload"><span>?</span> Video Processing</a>
+        <a className="nav-item" href="#detections"><span>?</span> Vehicle Detections</a>
 
         <div className="sidebar-bottom">
           <div className="system-status">
             <span className={`status-dot ${health === "Online" ? "green" : ""}`} />
             <div><strong>API Status</strong><p>{health}</p></div>
           </div>
-          <p className="sidebar-version">VEHICLE ANALYTICS · v1.0</p>
+          <p className="sidebar-version">VEHICLE ANALYTICS � v1.0</p>
         </div>
       </aside>
 
@@ -153,7 +153,7 @@ function App() {
             <h1>Vehicle Analytics Dashboard</h1>
             <p className="subtitle">Monitor traffic, process videos and analyze vehicle detections.</p>
           </div>
-          <button className="refresh-button" onClick={loadDashboard}>↻ <span>Refresh Data</span></button>
+          <button className="refresh-button" onClick={loadDashboard}>? <span>Refresh Data</span></button>
         </header>
 
         <section className="welcome-banner">
@@ -161,7 +161,7 @@ function App() {
             <span className="banner-tag">AI-POWERED MONITORING</span>
             <h2>Traffic intelligence, at a glance.</h2>
             <p>Upload traffic footage to detect vehicles and generate analytics.</p>
-            <a href="#upload" className="primary-button">Upload Traffic Video <span>→</span></a>
+            <a href="#upload" className="primary-button">Upload Traffic Video <span>?</span></a>
           </div>
           <div className="banner-art" aria-hidden="true">
             <div className="radar radar-one" />
@@ -174,7 +174,7 @@ function App() {
 
         <section className="section-heading">
           <div><h2>Traffic Overview</h2><p>Vehicle metrics reported by the backend</p></div>
-          <span className="live-badge"><span className="status-dot green" /> AUTO REFRESH · 5 SEC</span>
+          <span className="live-badge"><span className="status-dot green" /> AUTO REFRESH � 5 SEC</span>
         </section>
 
         <section className="stats-grid">
@@ -192,7 +192,7 @@ function App() {
           <article className="panel upload-panel" id="upload">
             <div className="panel-heading">
               <div><h2>Process Traffic Video</h2><p>Upload a supported video for analysis.</p></div>
-              <span className="panel-icon">⇧</span>
+              <span className="panel-icon">?</span>
             </div>
 
             <form onSubmit={processVideo}>
@@ -207,21 +207,21 @@ function App() {
                     setOutputVideo("");
                   }}
                 />
-                <span className="upload-symbol">↑</span>
+                <span className="upload-symbol">?</span>
                 <strong>{file ? file.name : "Choose a traffic video"}</strong>
                 <span className="dropzone-help">
-                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB selected` : "Click to browse · MP4, AVI, MOV or MKV"}
+                  {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB selected` : "Click to browse � MP4, AVI, MOV or MKV"}
                 </span>
               </label>
 
               <button className="submit-button" type="submit" disabled={loading || !file}>
-                {loading ? "Processing video..." : "Start Video Processing →"}
+                {loading ? "Processing video..." : "Start Video Processing ?"}
               </button>
             </form>
 
             {loading && <div className="progress-box"><div className="progress-track"><div className="progress-indicator" /></div>Processing can take some time on a CPU.</div>}
-            {message && <div className="message success">✓ {message}</div>}
-            {error && <div className="message error">⚠ {error}</div>}
+            {message && <div className="message success">? {message}</div>}
+            {error && <div className="message error">? {error}</div>}
 
             {outputVideo && (
               <div className="output-box">
@@ -239,7 +239,7 @@ function App() {
 
             {detections.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">◎</div>
+                <div className="empty-icon">?</div>
                 <h3>No detection records yet</h3>
                 <p>Upload and process a video. Records appear here when the backend returns or stores detections.</p>
               </div>
@@ -251,9 +251,9 @@ function App() {
                     {detections.slice(0, 100).map((item, index) => (
                       <tr key={item.track_id ?? item.id ?? index}>
                         <td><span className="vehicle-name">{item.class_name || item.vehicle_type || item.label || "Vehicle"}</span></td>
-                        <td>{typeof item.confidence === "number" ? `${(item.confidence * 100).toFixed(1)}%` : "—"}</td>
-                        <td>{item.color || "—"}</td>
-                        <td>{item.track_id ?? "—"}</td>
+                        <td>{typeof item.confidence === "number" ? `${(item.confidence * 100).toFixed(1)}%` : "�"}</td>
+                        <td>{item.color || "�"}</td>
+                        <td>{item.track_id ?? "�"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -264,8 +264,8 @@ function App() {
         </section>
 
         <footer className="footer">
-          <span>VehicleIQ · Vehicle Analytics System</span>
-          <span>AI Vision · Traffic Monitoring · Analytics</span>
+          <span>VehicleIQ � Vehicle Analytics System</span>
+          <span>AI Vision � Traffic Monitoring � Analytics</span>
         </footer>
       </main>
     </div>
@@ -273,3 +273,5 @@ function App() {
 }
 
 export default App;
+
+

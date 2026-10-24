@@ -30,3 +30,38 @@ database/*.db
 _backup_database_*/
 backend/main_backup_before_db.py
 vision/video_detector_backup.py
+
+# Local backups
+*_backup.py
+*_backup_*.py
+*.bak
+
+# Python environment
+.venv/
+venv/
+__pycache__/
+
+# Model weights and local data
+*.pt
+*.db
+.env
+.env.*
+!.env.example
+
+# Frontend dependencies and builds
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Streaming secrets and binaries
+streaming/auto.key
+streaming/auto.crt
+streaming/mediamtx.exe
+streaming/mediamtx.zip

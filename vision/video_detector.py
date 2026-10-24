@@ -6,48 +6,69 @@ from vision.pipeline import VehiclePipeline
 
 
 def process_video_file(video_path, output_path):
-    video_path = Path(video_path).resolve()
-    output_path = Path(output_path).resolve()
+    return process_video_source(video_path, output_path)
 
-    capture = cv2.VideoCapture(str(video_path))
 
-    if not capture.isOpened():
-        raise RuntimeError(f"Could not open video: {video_path}")
-
-    fps = capture.get(cv2.CAP_PROP_FPS)
-    if not fps or fps <= 0:
-        fps = 25.0
-
-    width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    if width <= 0 or height <= 0:
-        capture.release()
-        raise RuntimeError("Invalid video dimensions")
-
-    temp_video = output_path.with_name(output_path.stem + "_temp.mp4")
-
-    writer = cv2.VideoWriter(
-        str(temp_video),
-        cv2.VideoWriter_fourcc(*"mp4v"),
-        fps,
-        (width, height),
+def process_video_source(video_source, output_path=None, max_frames=None):
+    is_stream = isinstance(video_source, str) and video_source.lower().startswith(
+        ("rtsp://", "rtsps://")
     )
 
-    if not writer.isOpened():
-        capture.release()
-        raise RuntimeError(f"Could not create output video: {temp_video}")
+    output = None
+    temp_video = None
+    writer = None
+
+    if not is_stream:
+        if output_path is None:
+            raise ValueError("output_path is required for file processing")
+        output = Path(output_path).resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+
+    if is_stream:
+        capture = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)
+        capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)
+        capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 10000)
+    else:
+        capture = cv2.VideoCapture(str(Path(video_source).resolve()))
+
+    if not capture.isOpened():
+        raise RuntimeError(f"Could not open video source: {video_source}")
 
     pipeline = VehiclePipeline()
     vehicles_seen = {}
+    crossing_events = []
     processed_frames = 0
 
     try:
-        while True:
+        fps = capture.get(cv2.CAP_PROP_FPS) or 25.0
+        if fps <= 0:
+            fps = 25.0
+
+        width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        if not is_stream:
+            if width <= 0 or height <= 0:
+                raise RuntimeError("Invalid video dimensions")
+
+            temp_video = output.with_name(output.stem + "_temp.mp4")
+            writer = cv2.VideoWriter(
+                str(temp_video),
+                cv2.VideoWriter_fourcc(*"mp4v"),
+                fps,
+                (width, height),
+            )
+            if not writer.isOpened():
+                raise RuntimeError(f"Could not create output video: {temp_video}")
+
+        while max_frames is None or processed_frames < max_frames:
             success, frame = capture.read()
             if not success:
+                if is_stream:
+                    raise RuntimeError("RTSP stream disconnected or frame read failed")
                 break
 
+            height, width = frame.shape[:2]
             detections = pipeline.process_frame(frame)
 
             for item in detections:
@@ -55,6 +76,7 @@ def process_video_file(video_path, output_path):
                 track_id = int(item["track_id"])
                 vehicle_type = item["class_name"]
                 color = item.get("color", "Unknown")
+                direction = item.get("direction")
 
                 vehicles_seen[track_id] = {
                     "track_id": track_id,
@@ -64,6 +86,14 @@ def process_video_file(video_path, output_path):
                     "confidence": round(float(item.get("confidence", 0)), 3),
                     "bbox": [x1, y1, x2, y2],
                 }
+
+                if item.get("line_crossed") and direction in ("up", "down"):
+                    crossing_events.append({
+                        "vehicle_id": str(track_id),
+                        "color": color,
+                        "direction": direction,
+                        "frame_number": processed_frames + 1,
+                    })
 
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.putText(
@@ -88,7 +118,9 @@ def process_video_file(video_path, output_path):
                 2,
             )
 
-            writer.write(frame)
+            if writer is not None:
+                writer.write(frame)
+
             processed_frames += 1
 
             if processed_frames % 50 == 0:
@@ -96,44 +128,33 @@ def process_video_file(video_path, output_path):
 
     finally:
         capture.release()
-        writer.release()
+        if writer is not None:
+            writer.release()
 
     if processed_frames == 0:
-        temp_video.unlink(missing_ok=True)
         raise RuntimeError("No frames were processed")
 
-    try:
-        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    if not is_stream:
+        try:
+            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+            result = subprocess.run(
+                [
+                    ffmpeg, "-y", "-i", str(temp_video),
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart", "-an", str(output),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"H.264 conversion failed: {result.stderr[-2000:]}")
+        finally:
+            if temp_video:
+                temp_video.unlink(missing_ok=True)
 
-        command = [
-            ffmpeg,
-            "-y",
-            "-i", str(temp_video),
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
-            "-an",
-            str(output_path),
-        ]
-
-        result = subprocess.run(command, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            raise RuntimeError(f"H.264 conversion failed: {result.stderr[-2000:]}")
-
-    finally:
-        temp_video.unlink(missing_ok=True)
-
-    counts = {
-        "cars": 0,
-        "trucks": 0,
-        "buses": 0,
-        "motorcycles": 0,
-    }
-
+    counts = {"cars": 0, "trucks": 0, "buses": 0, "motorcycles": 0}
     for item in vehicles_seen.values():
         kind = item["vehicle_type"].lower()
-
         if kind == "car":
             counts["cars"] += 1
         elif kind == "truck":
@@ -151,4 +172,5 @@ def process_video_file(video_path, output_path):
             "processed_frames": processed_frames,
         },
         "detections": list(vehicles_seen.values()),
+        "crossing_events": crossing_events,
     }

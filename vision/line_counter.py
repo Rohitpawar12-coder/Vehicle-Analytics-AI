@@ -13,13 +13,12 @@
         if previous_y is None or track_id in self.counted_ids:
             return False
 
-        crossed = (previous_y < line_y <= center_y) or (
-            previous_y > line_y >= center_y
-        )
+        crossed_up = previous_y > line_y >= center_y
+        crossed_down = previous_y < line_y <= center_y
 
-        if crossed:
+        if crossed_up or crossed_down:
             self.counted_ids.add(track_id)
             self.total += 1
-            return True
+            return "up" if crossed_up else "down"
 
         return False
