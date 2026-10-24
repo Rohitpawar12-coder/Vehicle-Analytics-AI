@@ -1,0 +1,10 @@
+model:
+  name: yolo11n.pt
+  confidence: 0.35
+  vehicle_class_ids: [2, 3, 5, 7]
+video:
+  max_upload_mb: 500
+  output_folder: sample_videos/processed
+notes:
+  - This starter runs on CPU and downloads YOLO weights on first use.
+  - NVIDIA DeepStream is not included in this CPU prototype.
